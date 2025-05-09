@@ -198,6 +198,7 @@ static uint numNodes = 0;
 static uint numArcs = 0;
 static uint numNodesSuper = 0;
 static uint numArcsSuper = 0;
+static uint numParametricArcs = 0; // Arcs that go from source or into sink
 static uint source;
 static uint sourceSuper;
 static uint sink;
@@ -214,6 +215,7 @@ static Node *nodesList = NULL;
 static Root *strongRoots = NULL;
 static uint *labelCount = NULL;
 static Arc *arcList = NULL;
+static Arc **paramArcList = NULL;
 static Node *nodeListSuper = NULL;
 static Arc *arcListSuper = NULL;
 static uint lowestPositiveExcessNode = 0;
@@ -1376,7 +1378,60 @@ readData
 
 		++nodeListSuper[from].numAdjacent;
 		++nodeListSuper[to].numAdjacent;
+
+        if ( from == sourceSuper || to == sinkSuper )
+        {
+            ++ numParametricArcs;
+        }
+
 	}
+
+
+}
+
+static int cmp_arc_breakpoint( const void *l, const void *r)
+{
+    const Arc *la = (const Arc*) l;
+    const Arc *ra = (const Arc*) r;
+
+    double a_bp = -la->constant / la->multiplier;
+    double b_bp = -lb->constant / lb->multiplier;
+
+
+    return (a_bp > b_bp) - (a_bp < b_bp);
+}
+
+
+// Sort parametric arcs list according to their breakpoint ( change in piecewise linear
+// function)
+static void sortParamArcList()
+{
+    qsort( paramArcList, numParametricArc, sizeof(Arc*), cmp_arc_breakpoint);
+
+}
+
+static void allocateParamArcList()
+{
+    int i = 0;
+    int idx = 0;
+	if ((paramArcList= (Arc **)malloc(numParametricArcs * sizeof(Arc*))) == NULL)
+	{
+		printf("Could not allocate memory.\n");
+		exit(0);
+	}
+
+
+    for ( i = 0; i < numArcsSuper; ++i)
+    {
+        uint from = arcListSuper[i].from->number;
+        uint to = arcListSuper[i].to->number;
+
+        if ( from == sourceSuper || to == sinkSuper )
+        {
+            paramArcsList[idx++] = &(arcListSuper[i]);
+        }
+    }
+
 }
 
 static void pseudoflowPhase1 (void)
