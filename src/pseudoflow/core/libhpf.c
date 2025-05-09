@@ -1391,13 +1391,23 @@ readData
 
 static int cmp_arc_breakpoint( const void *l, const void *r)
 {
-    const Arc *la = (const Arc*) l;
-    const Arc *ra = (const Arc*) r;
+    const Arc *la = *(const Arc**) l;
+    const Arc *ra = *(const Arc**) r;
 
-    double a_bp = -la->constant / la->multiplier;
-    double b_bp = -lb->constant / lb->multiplier;
+    double a_bp = -(la->constant) / la->multiplier;
+    double b_bp = -(ra->constant) / ra->multiplier;
 
 
+    /*
+    printf("c comparing %d->%d , %d->%d, %lf / %lf = %lf and %lf / %lf = %lf\n",
+            la->from->number, la->to->number,
+            ra->from->number, ra->to->number,
+            -(la->constant), la->multiplier, a_bp,
+            -(ra->constant), ra->multiplier, b_bp);
+    if ( a_bp < b_bp ) return -1;
+    if ( a_bp < b_bp ) return 1;
+    return 0;
+*/
     return (a_bp > b_bp) - (a_bp < b_bp);
 }
 
@@ -1406,7 +1416,22 @@ static int cmp_arc_breakpoint( const void *l, const void *r)
 // function)
 static void sortParamArcList()
 {
-    qsort( paramArcList, numParametricArc, sizeof(Arc*), cmp_arc_breakpoint);
+    qsort( paramArcList, numParametricArcs, sizeof(Arc*), cmp_arc_breakpoint);
+
+}
+
+static void debugPrintParamArcList()
+{
+    printf("c Printing parametric Arcs\n");
+    int i;
+    for ( i=0; i < numParametricArcs; ++i)
+    {
+        printf("c %d -b/a = %lf/%lf = %lf\n",
+                i,
+                -paramArcList[i]->constant,
+                paramArcList[i]->multiplier,
+                -paramArcList[i]->constant/ paramArcList[i]->multiplier);
+    }
 
 }
 
@@ -1426,13 +1451,22 @@ static void allocateParamArcList()
         uint from = arcListSuper[i].from->number;
         uint to = arcListSuper[i].to->number;
 
-        if ( from == sourceSuper || to == sinkSuper )
+        if ( (from == sourceSuper || to == sinkSuper)
+                && arcListSuper[i].multiplier != 0.0)
         {
-            paramArcsList[idx++] = &(arcListSuper[i]);
+#ifdef VERBOSE
+            printf("c add arc %d->%d with a = %lf b=%lf to parametric arcs\n",
+                    from,
+                    to,
+                    arcListSuper[i].multiplier,
+                    arcListSuper[i].constant);
+#endif
+            paramArcList[idx++] = &(arcListSuper[i]);
         }
     }
 
 }
+
 
 static void pseudoflowPhase1 (void)
 {
@@ -2316,6 +2350,17 @@ main - Main function
 		useParametricCut = 0;
 	roundNegativeCapacity = roundNegativeCapacityIn;
 	readGraphSuper( arcMatrix );
+
+
+    if ( roundNegativeCapacity )
+    {
+        allocateParamArcList();
+        sortParamArcList();
+#ifdef VERBOSE
+        debugPrintParamArcList();
+#endif
+    }
+
 	readEnd = clock();
 
     //printf("c sorting arcs and initializing par cut\n");
