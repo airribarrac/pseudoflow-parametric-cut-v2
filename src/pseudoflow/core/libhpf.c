@@ -2167,6 +2167,87 @@ static double internalCutCapacity(uint *optimalSourceSetIndicator) {
     return capacity;
 }
 
+static double evaluateArcFunction(Arc *a, double lambda)
+{
+    return a->constant + a->multiplier * lambda;
+
+}
+
+static double computePiecewiseIntersect(uint *lpS, uint *hpS, double lambda_0, double lambda_1)
+{
+    Arc *currArc = NULL;
+    double eps = 1e-7;
+    double res = NAN;
+
+    // sums of multipliers (a) and constants (b) for low and high problem
+    double a_l = 0;
+    double b_l = 0;
+
+    double a_h = 0;
+    double b_l = 0;
+
+    int from;
+    int to;
+
+    double arc_constant;
+    double arc_multiplier;
+    double arc_bp;
+
+    int i;
+
+    for ( i=0; i < numArcsSuper; ++i )
+    {
+        from = arcListSuper[i].from->originalIndex;
+        to = arcListSuper[i].to->originalIndex;
+        arc_constant = arcListSuper[i].constant;
+        arc_multiplier = arcListSuper[i].multiplier;
+        arc_bp = (-arc_constant / arc_multiplier)+0.0
+
+        // Ignore non-constant arcs that are 0 at lambda
+        // (decreasing, already reached 0 or
+        // increasing, will increase after lambda_0)
+        if ( arc_multiplier != 0.0
+                && (arc_bp <lambda_0 && arc_multiplier < 0)
+                && (arc_bp > lambda_0 && arc_multiplier > 0) )
+        {
+            continue;
+        }
+
+
+        // Arc is in the cut of low problem
+        if ( lpS[from] && ! lpS[to] )
+        {
+            a_l += arc_multiplier;
+            b_l += arc_constant;
+        }
+
+        // Arc is in the cut of high problem
+        if ( hpS[from] && ! hpS[to] )
+        {
+            a_h += arc_multiplier;
+            b_h += arc_constant;
+        }
+    }
+
+    int idxParamArc = 0;
+
+    while (1)
+    {
+        currArc =  paramArcList[idxParamArc];
+        arc_multiplier = currArc->multiplier;
+        arc_constant = currArc->constant;
+        arc_bp = -arc_constant/arc_multiplier + 0.0;
+
+    }
+
+
+
+
+
+
+
+}
+
 static double computeIntersect(uint *difference, double K12)
 {
     double constant = K12;
