@@ -2339,24 +2339,38 @@ parametricCut - Recursive function that solves the parametric cut problem
     uint num_nodes_different_low_high = sum_array_uint(pdifference_low_high,
 			numNodesSuper);
 
+    double Klow, Khigh, K12;
 	/* find lambda value for which the optimal cut functions(expressed as a function of lambda)
 	for the lower bound and upper bound problem intersect. */
 	if (num_nodes_different_low_high > 0)
 	{
         // find intersection using method outlined in Hochbaum 2003 on inverse spanning-tree.
-        /*
-        double Klow = internalCutCapacity(lowProblem->optimalSourceSetIndicator);
-        double Khigh = internalCutCapacity(highProblem->optimalSourceSetIndicator);
-        double K12 = Klow - Khigh;
 
-        double lambdaIntersect = computeIntersect(pdifference_low_high, K12);
+        // We only need to compute this for the linear case
+        if ( !roundNegativeCapacity )
+        {
+            Klow = internalCutCapacity(lowProblem->optimalSourceSetIndicator);
+            Khigh = internalCutCapacity(highProblem->optimalSourceSetIndicator);
+            K12 = Klow - Khigh;
 
-                */
-        double lambdaIntersect = computePiecewiseIntersect(lowProblem->optimalSourceSetIndicator,
+        }
+
+        // if we are rounding negative capacities, use piecewise-linear
+        // intersection, else use simpler linear intersection
+        //double lambdaIntersect = computeIntersect(pdifference_low_high, K12);
+
+        double lambdaIntersect = roundNegativeCapacity ?
+            computePiecewiseIntersect(lowProblem->optimalSourceSetIndicator,
                 highProblem->optimalSourceSetIndicator,
                 lowProblem->lambdaValue,
-                highProblem->lambdaValue);
+                highProblem->lambdaValue) :
+        computeIntersect(pdifference_low_high, K12);
 
+
+        printf("c for interval [%lf, %lf] intersect = %lf\n",
+                lowProblem->lambdaValue,
+                highProblem->lambdaValue,
+                lambdaIntersect);
 
 
         //lambdaIntersect = myIntersect;
@@ -2495,7 +2509,7 @@ main - Main function
 	readGraphSuper( arcMatrix );
 
 
-    if ( 1 || roundNegativeCapacity )
+    if ( roundNegativeCapacity )
     {
         allocateParamArcList();
         sortParamArcList();
