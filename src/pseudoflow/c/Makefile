@@ -1,4 +1,4 @@
-OPT = -O2 -march=native
+OPT = -O2 -march=native -g
 CFLAGS = -c -fpic -Wall -std=gnu99 $(OPT)
 LDFLAGS =
 

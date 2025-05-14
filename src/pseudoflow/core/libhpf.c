@@ -108,6 +108,7 @@
 #include "stdlib.h"
 #include "time.h"
 //#include <unistd.h>
+#include <math.h>
 
 /*************************************************************************
 Definitions
@@ -1379,7 +1380,7 @@ readData
 		++nodeListSuper[from].numAdjacent;
 		++nodeListSuper[to].numAdjacent;
 
-        if ( from == sourceSuper || to == sinkSuper )
+        if ( multiplierCapacity != 0.0 )
         {
             ++ numParametricArcs;
         }
@@ -2173,79 +2174,125 @@ static double evaluateArcFunction(Arc *a, double lambda)
 
 }
 
-static double computePiecewiseIntersect(uint *lpS, uint *hpS, double lambda_0, double lambda_1)
-{
-    Arc *currArc = NULL;
-    double eps = 1e-7;
-    double res = NAN;
 
-    // sums of multipliers (a) and constants (b) for low and high problem
-    double a_l = 0;
-    double b_l = 0;
+static double computePiecewiseIntersect(unsigned int *lpS, unsigned int *hpS, double lambda_0, double lambda_1) {
+    double eps = 0.0;
+    double res = 1.0 / 0.0; // set as infinite
 
-    double a_h = 0;
-    double b_l = 0;
+    double a_l = 0, b_l = 0, a_h = 0, b_h = 0;
+    double arc_constant, arc_multiplier, arc_bp;
+    int from, to, i;
 
-    int from;
-    int to;
+    // Allocate and initialize isActive array
+    char *isArcActive = malloc(sizeof(char) * numParametricArcs);
 
-    double arc_constant;
-    double arc_multiplier;
-    double arc_bp;
-
-    int i;
-
-    for ( i=0; i < numArcsSuper; ++i )
-    {
+    // Initialization step
+    for (i = 0; i < numArcsSuper; ++i) {
         from = arcListSuper[i].from->originalIndex;
         to = arcListSuper[i].to->originalIndex;
         arc_constant = arcListSuper[i].constant;
         arc_multiplier = arcListSuper[i].multiplier;
-        arc_bp = (-arc_constant / arc_multiplier)+0.0
 
-        // Ignore non-constant arcs that are 0 at lambda
-        // (decreasing, already reached 0 or
-        // increasing, will increase after lambda_0)
-        if ( arc_multiplier != 0.0
-                && (arc_bp <lambda_0 && arc_multiplier < 0)
-                && (arc_bp > lambda_0 && arc_multiplier > 0) )
-        {
-            continue;
-        }
+        double arc_val = arc_constant + arc_multiplier * lambda_0;
+        if (arc_val <= eps) continue; // inactive at lambda_0
 
-
-        // Arc is in the cut of low problem
-        if ( lpS[from] && ! lpS[to] )
-        {
+        if (lpS[from] && !lpS[to]) {
             a_l += arc_multiplier;
             b_l += arc_constant;
         }
-
-        // Arc is in the cut of high problem
-        if ( hpS[from] && ! hpS[to] )
-        {
+        if (hpS[from] && !hpS[to]) {
             a_h += arc_multiplier;
             b_h += arc_constant;
         }
     }
 
-    int idxParamArc = 0;
-
-    while (1)
-    {
-        currArc =  paramArcList[idxParamArc];
-        arc_multiplier = currArc->multiplier;
-        arc_constant = currArc->constant;
-        arc_bp = -arc_constant/arc_multiplier + 0.0;
-
+    // Initialize activation status for parametric arcs
+    for (i = 0; i < numParametricArcs; ++i) {
+        arc_constant = paramArcList[i]->constant;
+        arc_multiplier = paramArcList[i]->multiplier;
+        arc_bp = -arc_constant / arc_multiplier + 0.0;
+        double arc_val = paramArcList[i]->constant + paramArcList[i]->multiplier * lambda_0;
+        isArcActive[i] = (arc_val > eps);
     }
 
+    // Skip past breakpoints before lambda_0
+    for (i = 0; i < numParametricArcs; ++i) {
+        arc_constant = paramArcList[i]->constant;
+        arc_multiplier = paramArcList[i]->multiplier;
+        if (fabs(arc_multiplier) < eps) continue;
+        arc_bp = -arc_constant / arc_multiplier;
+        if (arc_bp >= lambda_0 - eps) break;
+    }
 
+    double lambda_prev = lambda_0;
+    double lambda_next;
 
+    for (; i <= numParametricArcs;) {
+        lambda_next = (i < numParametricArcs)
+            ? -paramArcList[i]->constant / paramArcList[i]->multiplier
+            : lambda_1;
 
+        if (lambda_next > lambda_1) lambda_next = lambda_1;
 
+        double denom = a_l - a_h;
+        if (fabs(denom) > eps) {
+            double lambda_star = (b_h - b_l) / denom;
+            if (lambda_star >= lambda_prev && lambda_star <+ lambda_next )
+            {
+                res = lambda_star;
+            }
+        }
 
+        if (lambda_next == lambda_1) break;
 
+        if (i == numParametricArcs) break;
+
+        while (i < numParametricArcs) {
+            arc_constant = paramArcList[i]->constant;
+            arc_multiplier = paramArcList[i]->multiplier;
+            arc_bp = -arc_constant / arc_multiplier;
+
+            if (arc_bp > lambda_next + eps) break;
+
+            from = paramArcList[i]->from->originalIndex;
+            to = paramArcList[i]->to->originalIndex;
+
+            int in_lp_cut = lpS[from] && !lpS[to];
+            int in_hp_cut = hpS[from] && !hpS[to];
+            int activating = (arc_multiplier > 0);
+
+            if (activating && !isArcActive[i]) {
+                isArcActive[i] = 1;
+                if (in_lp_cut) {
+                    a_l += arc_multiplier;
+                    b_l += arc_constant;
+                }
+                if (in_hp_cut) {
+                    a_h += arc_multiplier;
+                    b_h += arc_constant;
+                }
+            } else if (!activating && isArcActive[i]) {
+                isArcActive[i] = 0;
+                if (in_lp_cut) {
+                    a_l -= arc_multiplier;
+                    b_l -= arc_constant;
+                }
+                if (in_hp_cut) {
+                    a_h -= arc_multiplier;
+                    b_h -= arc_constant;
+                }
+            }
+
+            ++i;
+        }
+
+        lambda_prev = lambda_next;
+    }
+
+    free(isArcActive);
+
+    // printf("\nc Final intersection returned: %.12lf\n", res);
+    return res;
 }
 
 static double computeIntersect(uint *difference, double K12)
@@ -2298,6 +2345,19 @@ parametricCut - Recursive function that solves the parametric cut problem
 
         double lambdaIntersect = computeIntersect(pdifference_low_high, K12);
 
+        double myIntersect = computePiecewiseIntersect(lowProblem->optimalSourceSetIndicator,
+                highProblem->optimalSourceSetIndicator,
+                lowProblem->lambdaValue,
+                highProblem->lambdaValue);
+
+
+        printf("c find intersect for [%.4lf, %.4lf]\n",
+                lowProblem->lambdaValue,
+                highProblem->lambdaValue);
+        printf("c     old intersect = %.4lf\n", lambdaIntersect);
+        printf("c     new intersect = %.4lf\n", myIntersect);
+
+        //lambdaIntersect = myIntersect;
         // find minimal and maximal source set at lambdaIntersect.
         // Add/subtract TOL to prevent numerical issues.
         CutProblem minimalIntersect;
@@ -2433,7 +2493,7 @@ main - Main function
 	readGraphSuper( arcMatrix );
 
 
-    if ( roundNegativeCapacity )
+    if ( 1 || roundNegativeCapacity )
     {
         allocateParamArcList();
         sortParamArcList();
@@ -2446,7 +2506,7 @@ main - Main function
 
     //printf("c sorting arcs and initializing par cut\n");
 	initStart = clock();
-    qsort(arcListSuper, numArcsSuper, sizeof(Arc), cmpArc);
+    //qsort(arcListSuper, numArcsSuper, sizeof(Arc), cmpArc);
 	CutProblem lowProblem;
 	CutProblem highProblem;
 	initializeParametricCut(&lowProblem,&highProblem);
