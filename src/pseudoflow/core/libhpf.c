@@ -2174,19 +2174,23 @@ static double evaluateArcFunction(Arc *a, double lambda)
 
 }
 
+// Computes the intersection of the two piecewise-linear functions
+// of the low and high cut, computed at lambda_0 and lambda_1 respectively
 
+// We traverse the linear sub-intervals, tracking which arcs linear functions
+// are activated (with non zero slope at that interval), and compute the
+// intersection in linear time respect to the number of arcs
 static double computePiecewiseIntersect(unsigned int *lpS, unsigned int *hpS, double lambda_0, double lambda_1) {
     double eps = 0.0;
-    double res = 1.0 / 0.0; // set as infinite
+    double res = 1.0 / 0.0; // set as infinite by default
 
     double a_l = 0, b_l = 0, a_h = 0, b_h = 0;
     double arc_constant, arc_multiplier, arc_bp;
     int from, to, i;
 
-    // Allocate and initialize isActive array
-    char *isArcActive = malloc(sizeof(char) * numParametricArcs);
 
     // Initialization step
+    // Add arcs that are active at lambda_0
     for (i = 0; i < numArcsSuper; ++i) {
         from = arcListSuper[i].from->originalIndex;
         to = arcListSuper[i].to->originalIndex;
@@ -2206,16 +2210,9 @@ static double computePiecewiseIntersect(unsigned int *lpS, unsigned int *hpS, do
         }
     }
 
-    // Initialize activation status for parametric arcs
-    for (i = 0; i < numParametricArcs; ++i) {
-        arc_constant = paramArcList[i]->constant;
-        arc_multiplier = paramArcList[i]->multiplier;
-        arc_bp = -arc_constant / arc_multiplier + 0.0;
-        double arc_val = paramArcList[i]->constant + paramArcList[i]->multiplier * lambda_0;
-        isArcActive[i] = (arc_val > eps);
-    }
 
     // Skip past breakpoints before lambda_0
+    // May be optimized with binary search?
     for (i = 0; i < numParametricArcs; ++i) {
         arc_constant = paramArcList[i]->constant;
         arc_multiplier = paramArcList[i]->multiplier;
@@ -2228,30 +2225,45 @@ static double computePiecewiseIntersect(unsigned int *lpS, unsigned int *hpS, do
     double lambda_next;
 
     for (; i <= numParametricArcs;) {
+        // We compute the interval [lambda_prev, lambda_next] at which
+        // there are no breakpoints in between, and at which we will
+        // compute an intersection
         lambda_next = (i < numParametricArcs)
             ? -paramArcList[i]->constant / paramArcList[i]->multiplier
             : lambda_1;
 
+        // Interval ends after lambda_1, truncate
         if (lambda_next > lambda_1) lambda_next = lambda_1;
 
         double denom = a_l - a_h;
         if (fabs(denom) > eps) {
             double lambda_star = (b_h - b_l) / denom;
+            // Intersection lies within subinterval, valid answer
             if (lambda_star >= lambda_prev && lambda_star <+ lambda_next )
             {
                 res = lambda_star;
+                return res;
             }
         }
 
+        // If this condition is true, then we computed last interval, stop
         if (lambda_next == lambda_1) break;
 
+
+        // We reached last arc, stop
         if (i == numParametricArcs) break;
 
+        // Parametric arcs are sorted by breakpoint
+        // Keep checking arcs that have same breakpoint
+        // and add/substract their coefficients to the
+        // cuts
         while (i < numParametricArcs) {
             arc_constant = paramArcList[i]->constant;
             arc_multiplier = paramArcList[i]->multiplier;
             arc_bp = -arc_constant / arc_multiplier;
 
+            // We reached an arc with other breakpoint value, stop
+            // and compute intersection
             if (arc_bp > lambda_next + eps) break;
 
             from = paramArcList[i]->from->originalIndex;
@@ -2259,37 +2271,30 @@ static double computePiecewiseIntersect(unsigned int *lpS, unsigned int *hpS, do
 
             int in_lp_cut = lpS[from] && !lpS[to];
             int in_hp_cut = hpS[from] && !hpS[to];
+
+            // From left to right, an arc becomes active at its breakpoint
+            // if the multiplier is positive
             int activating = (arc_multiplier > 0);
 
-            if (activating && !isArcActive[i]) {
-                isArcActive[i] = 1;
-                if (in_lp_cut) {
-                    a_l += arc_multiplier;
-                    b_l += arc_constant;
-                }
-                if (in_hp_cut) {
-                    a_h += arc_multiplier;
-                    b_h += arc_constant;
-                }
-            } else if (!activating && isArcActive[i]) {
-                isArcActive[i] = 0;
-                if (in_lp_cut) {
-                    a_l -= arc_multiplier;
-                    b_l -= arc_constant;
-                }
-                if (in_hp_cut) {
-                    a_h -= arc_multiplier;
-                    b_h -= arc_constant;
-                }
+            // If the arc becomes active, then we add it
+            // else, we subtract it
+            double sign = activating ? 1 : -1;
+            if (in_lp_cut) {
+                a_l += arc_multiplier * sign;
+                b_l += arc_constant * sign;
+            }
+            if (in_hp_cut) {
+                a_h += arc_multiplier * sign;
+                b_h += arc_constant * sign;
             }
 
             ++i;
         }
 
+        // We proceed to compute intersection with next interval
         lambda_prev = lambda_next;
     }
 
-    free(isArcActive);
 
     // printf("\nc Final intersection returned: %.12lf\n", res);
     return res;
@@ -2339,23 +2344,20 @@ parametricCut - Recursive function that solves the parametric cut problem
 	if (num_nodes_different_low_high > 0)
 	{
         // find intersection using method outlined in Hochbaum 2003 on inverse spanning-tree.
+        /*
         double Klow = internalCutCapacity(lowProblem->optimalSourceSetIndicator);
         double Khigh = internalCutCapacity(highProblem->optimalSourceSetIndicator);
         double K12 = Klow - Khigh;
 
         double lambdaIntersect = computeIntersect(pdifference_low_high, K12);
 
-        double myIntersect = computePiecewiseIntersect(lowProblem->optimalSourceSetIndicator,
+                */
+        double lambdaIntersect = computePiecewiseIntersect(lowProblem->optimalSourceSetIndicator,
                 highProblem->optimalSourceSetIndicator,
                 lowProblem->lambdaValue,
                 highProblem->lambdaValue);
 
 
-        printf("c find intersect for [%.4lf, %.4lf]\n",
-                lowProblem->lambdaValue,
-                highProblem->lambdaValue);
-        printf("c     old intersect = %.4lf\n", lambdaIntersect);
-        printf("c     new intersect = %.4lf\n", myIntersect);
 
         //lambdaIntersect = myIntersect;
         // find minimal and maximal source set at lambdaIntersect.
