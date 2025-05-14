@@ -2367,10 +2367,6 @@ parametricCut - Recursive function that solves the parametric cut problem
         computeIntersect(pdifference_low_high, K12);
 
 
-        printf("c for interval [%lf, %lf] intersect = %lf\n",
-                lowProblem->lambdaValue,
-                highProblem->lambdaValue,
-                lambdaIntersect);
 
 
         //lambdaIntersect = myIntersect;
