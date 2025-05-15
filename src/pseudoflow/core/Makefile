@@ -1,6 +1,6 @@
-OPT = -O2 -march=native -g
+OPT = -O4 -march=native -g --static
 CFLAGS = -c -fpic -Wall -std=gnu99 $(OPT)
-LDFLAGS = -shared
+LDFLAGS = --static
 
 SOURCES = libhpf.c
 TARGET = ../libhpf.so
