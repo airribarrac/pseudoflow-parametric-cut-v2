@@ -2300,6 +2300,8 @@ static double computePiecewiseIntersect(char *lpS, char *hpS, double lambda_0, d
         double denom = a_l - a_h;
         if (fabs(denom) > eps) {
             double lambda_star = (b_h - b_l) / denom;
+            printf("c check intersection in range [%lf, %lf] is %lf\n",
+                    lambda_prev, lambda_next, lambda_star);
             // Intersection lies within subinterval, valid answer
             if (lambda_star >= lambda_prev && lambda_star <+ lambda_next )
             {
@@ -2362,6 +2364,28 @@ static double computePiecewiseIntersect(char *lpS, char *hpS, double lambda_0, d
     return res;
 }
 
+double evaluateCutFunction(char *S, double lambda) {
+    double sum = 0.0;
+    double arc_val;
+    int from, to;
+
+    for (int i = 0; i < numArcsSuper; ++i) {
+        from = arcListSuper[i].from->originalIndex;
+        to   = arcListSuper[i].to->originalIndex;
+
+        if (S[from] && !S[to]) {
+            // Arc is in the cut
+            arc_val = arcListSuper[i].constant + arcListSuper[i].multiplier * lambda;
+            if (arc_val > 0.0) {
+                sum += arc_val;
+            }
+        }
+    }
+
+    return sum;
+}
+
+
 
 static double computeIntersect(char *difference, double K12)
 {
@@ -2410,7 +2434,7 @@ parametricCut - Recursive function that solves the parametric cut problem
         // find intersection using method outlined in Hochbaum 2003 on inverse spanning-tree.
 
         // We only need to compute this for the linear case
-        if ( !roundNegativeCapacity )
+        if ( 1 || !roundNegativeCapacity )
         {
             Klow = internalCutCapacity(lowProblem->optimalSourceSetIndicator);
             Khigh = internalCutCapacity(highProblem->optimalSourceSetIndicator);
@@ -2420,7 +2444,7 @@ parametricCut - Recursive function that solves the parametric cut problem
 
         // if we are rounding negative capacities, use piecewise-linear
         // intersection, else use simpler linear intersection
-        //double lambdaIntersect = computeIntersect(pdifference_low_high, K12);
+        double oldLambdaIntersect = computeIntersect(pdifference_low_high, K12);
 
         double lambdaIntersect = roundNegativeCapacity ?
             computePiecewiseIntersect(lowProblem->optimalSourceSetIndicator,
@@ -2430,8 +2454,16 @@ parametricCut - Recursive function that solves the parametric cut problem
         computeIntersect(pdifference_low_high, K12);
 
 
+        printf("c intersection old at %lf\n", oldLambdaIntersect);
+        printf("c intersection at %lf\n", lambdaIntersect);
 
 
+        lambdaIntersect = oldLambdaIntersect;
+        double valLowCut = evaluateCutFunction(lowProblem->optimalSourceSetIndicator, lambdaIntersect);
+        double valHighCut = evaluateCutFunction(highProblem->optimalSourceSetIndicator, lambdaIntersect);
+
+        printf("c low cut at %lf = %lf\n", lambdaIntersect, valLowCut);
+        printf("c high cut at %lf = %lf\n", lambdaIntersect, valHighCut);
         //lambdaIntersect = myIntersect;
         // find minimal and maximal source set at lambdaIntersect.
         // Add/subtract TOL to prevent numerical issues.
