@@ -136,7 +136,7 @@ readData
 			switch (*buffer)
 			{
 			case 'p': /* initialize problem */
-				sscanf(buffer, "p %d %d %lf %lf %d\n", numNodes, numArcs, &lambdaRange[0], &lambdaRange[1], roundNegativeCapacity);
+				sscanf(buffer, "p %d %d %lf %lf\n", numNodes, numArcs, &lambdaRange[0], &lambdaRange[1]);
 
 				if ((arcMatrix = (double *)malloc(*numArcs * 4 * sizeof(double))) == NULL)
 				{
@@ -380,14 +380,14 @@ main - Main function
 	int sink;
 	double* arcMatrix;
 	double lambdaRange[2];
-	int roundNegativeCapacity;
+	int roundNegativeCapacity=0;
 
 	readData(argv[1], &numNodes, &numArcs, &source, &sink, &arcMatrix, lambdaRange, &roundNegativeCapacity);
 
 	printf("NumNodes: %d\n", numNodes);
 	printf("NumArcs: %d\n", numArcs);
 	printf("Lambda Range: [%.15lf, %.15lf]\n", lambdaRange[0], lambdaRange[1]);
-	printf("Round if negative: %d\n", roundNegativeCapacity);
+	// printf("Round if negative: %d\n", roundNegativeCapacity);
 	// printf("Arc matrix:\n");
 	// for (int i = 0; i < numArcs; ++i)
 	// {
