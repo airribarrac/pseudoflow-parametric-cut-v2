@@ -1,5 +1,5 @@
-# Hochbaum's Pseudoflow (HPF) Algorithm for (Linear) Fully Parametric Minimum Cut (personal testing branch)
-This package provides a parametric implementation of pseudoflow for minimum cut on directed graphs. In the parametric minimum cut problem, the capacity of source-adjacent arcs is monotone non-decreasing in the parameter `lambda` whereas the capacity of sink-adjacent arcs is monotone non-increasing in `lambda`. This solver requires that the capacities of source and sink adjacent arcs are linear in `lambda`: `capacity = constant + multiplier * lambda`.
+# Hochbaum's Pseudoflow (HPF) Algorithm for (2-Piecewise Linear) Fully Parametric Minimum Cut
+This package provides a parametric implementation of pseudoflow for minimum cut on directed graphs. In the parametric minimum cut problem, the capacity of source-adjacent arcs is monotone non-decreasing in the parameter `lambda` whereas the capacity of sink-adjacent arcs is monotone non-increasing in `lambda`. This solver requires that the capacities of source and sink adjacent arcs are 2-piecewise linear in `lambda`: `capacity = max(0, constant + multiplier * lambda)`.
 
 This fully parametric solver finds the optimal minimum cut for all `lambda` values in a given range. The solution for all lambda values is represented with `O(n)` intervals for the parameter lambda. In each interval, the optimal minimum cut remains the same.
 
@@ -11,9 +11,6 @@ This implementation uses a variant of the fully parametric HPF algorithm as desc
 >    DS Hochbaum (2008), The Pseudoflow algorithm: A new algorithm for the maximum flow problem. Operations Research, 58(4):992-1009.
 
 This implementation does not use *free runs* nor does it use warm starts with informatiom from previous runs (see pg.15). This implementation should therefore **not be used** for comparison with the fully parametric HPF algorithm.
-
-The package provides an option to round capacities that are negative for certain lambda values to zero. This option should **only** be used when each node has a source adjacent arc with capacity `max(0, a * lambda + b)` and a corresponding sink adjacent arc with capacity `max(0, -a * lambda - b)`. Otherwise, the intersection of the cut capacities is wrongly identified.
-
 
 ## Instructions for Python
 
