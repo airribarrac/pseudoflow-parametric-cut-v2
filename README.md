@@ -5,8 +5,6 @@ This fully parametric solver finds the optimal minimum cut for all `lambda` valu
 
 A simple parametric minimum cut solver that provides the optimal minimum cut for a given list of arc capacities is available [here](https://riot.ieor.berkeley.edu/Applications/Pseudoflow/parametric.html), and a non-parametric maximum flow version of pseudoflow is available [here](https://riot.ieor.berkeley.edu/Applications/Pseudoflow/maxflow.html).
 
-The package provides interfaces for Python, C, and Matlab.
-
 This implementation uses a variant of the fully parametric HPF algorithm as described in:
 >    DS Hochbaum (2008), The Pseudoflow algorithm: A new algorithm for the maximum flow problem. Operations Research, 58(4):992-1009.
 
