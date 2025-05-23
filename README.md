@@ -33,7 +33,6 @@ where the `a` line is repeated for each arc. The file should satisfy the followi
 - `<lambda multiplier>` is non-negative if `<from-node> == <source node>` and `<to-node> != <sink-node>`.
 - `<lambda multiplier>` is non-positive if `<from-node> != <source node>` and `<to-node> == <sink-node>`.
 - `<lambda multiplier>` is zero if `<from-node> != <source node>` and `<to-node> != <sink-node>`.
-- `<round if negative>` takes value 1 if the any negative capacity arc should be rounded to 0, and value 0 otherwise.
 
 The solver will generate the following output file:
 ```
